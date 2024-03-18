@@ -1,0 +1,65 @@
+:author: Jakob Hofer
+:docdate: 2024-03-18
+:icons: font
+:sectnums:
+:toc: left
+:experimental:
+
+= Diploma Thesis Snoty.Me - Proposal
+== Title
+Snoty.Me: Conception and Implementation of a Notification and Task Management Platform for the Educational Sector
+
+== Current Situation
+With the ongoing digitization, the educational sector has seen plenty of tools arise to fulfill every possible use case, often with overlapping functionality.
+This surge led to increased mental overhead for students that now have to closely monitor multiple platforms for changes. For example, this can result in:
+
+1. unnoticed cancellation of lessons
+2. forgotten homework
+3. unannounced, time-critical tasks being overlooked entirely
+
+== Things to Research
+1. extendable base framework
+   a. inputs -> system -> outputs
+   b. exponential amount of combinations +
+      => generic (templating) system required
+2. how to help the user self-host the entire application
+   a. Docker Image
+   b. Docker-Compose example
+   c. Raw Kubernetes Manifests
+   d. Helm Chart
+3. Integration with WebUntis
+   a. oAuth2 Flow or similar?
+   b. registration as an integration partner? +
+      => how would this work for self-hosted instances
+4. Integration with Moodle
+   a. oAuth2 Flow or comparable?
+   b. Mobile app tokens?
+5. authentication mechanisms +
+   => how will the user sign in to the application
+6. usefulness of a mobile app
+
+== Goal
+A self-hostable application with a SaaS offering that allows students to connect their LMSs with their tools and services
+
+== Planned Result
+* intuitive user interface
+* dead easy LMS connection
+* powerful, yet uncomplicated target configuration
+    ** basics are incredibly simple to set up
+    ** advanced customizability possible, if wanted
+
+== Milestones
+_no dates yet as they largely depend on how well the integration of the external platforms goes_
+
+* base server framework
+* PoC Moodle & WebUntis data fetching
+* input diffs (comparing versions to detect changes)
+* basic frontend
+* authentication
+* routing + target services (backend only)
+* configuring routing in frontend
+* advanced configuration
+
+== Potential Partners
+- link:https://moodle.org[Moodle]
+- link:https://untis.at[Untis]
