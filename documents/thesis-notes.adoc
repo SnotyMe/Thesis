@@ -1,0 +1,53 @@
+= Thesis Notes
+
+This contains various notes, to be either copied or used as a reference for the thesis.
+
+== Comparing versions
+A crucial ingredient to the platform is comparing states.
+
+When exams, assignments etc. are updated, the platform should be able to compare the old and new versions and highlight the differences.
+
+To do this, "updatable" entities have two main parts:
+
+1. checksum +
+   prior to comparing the full versions, the checksums of the two versions are compared. If they are different, the full versions are compared. If they are the same, the versions are considered identical. This prevents unnecessary data loading and comparison.
+2. diff +
+   the full versions are compared and the differences are highlighted.
+
+=== Storing versions
+In order to compare versions between application restarts, entities
+and their checksum need to be persisted in a database.
+
+==== Comparing persistence options
+1. Database +
+   The most common way to persist data. The checksums and versions can be stored in a database.
+2. File system +
+   The checksums and versions can be stored in files. This is more lightweight than a database, but also less flexible and reliable. In addition, this makes it way harder in cloud-native environments.
+3. In-memory +
+   The checksums and versions can be stored in memory. This is the most lightweight option, but also the least reliable. Unfortunately, this is not an option as the application should be scalable and failure resistant.
+
+As Snoty.Me already uses a database, this is the method of choice.
+
+===== Database options
+1. SQL +
+   Advantage: fast querying, easy lookup of checksums. Already used in Snoty.Me.
+   Disadvantage: less flexible than NoSQL. Doesn't, or at least, shouldn't store JSON.
+2. NoSQL +
+   A more flexible way to store data. Allows to store and query JSON natively.
+   Disadvantage: separate database, increasing complexity.
+3. In-memory database (Valkey / Redis) +
+   A KV-store like Valkey (formerly Redis) is incredibly fast to query, which is important in this part of the system as lookups are quite common.
+   Disadvantage: separate component, increasing complexity.
+
+A key factor in choosing the infrastructure and backing components of Snoty.Me is to keep it as simple as possible. For a SaaS-only application, it can absolutely make sense to pick a purpose-built and complex infrastructure for the sake of performance. However, Snoty.Me is a piece of application that should work in a variety of environments, including on-premise installations. Therefore, the infrastructure should be as simple as possible, allowing everyone to run it with minimal effort and resources.
+
+Since NoSQL databases do not offer a significant advantage over SQL databases in this case, and in fact, add complexity, they are not considered. Valkey is a great tool for caching and fast lookups, but requires a separate component that isn't needed in another component of the system. In this case, it is more important to keep the system simple and easy to run. Hence, the SQL database is the method of choice.
+
+====== JSON or JSONB
+In PostgreSQL, there are two ways to store JSON data: JSON and JSONB. JSON is stored as text, while JSONB is stored as a binary format. JSONB is more efficient for querying, as it can be indexed. JSON is more efficient for storage, as it is stored as text.
+
+The PostgreSQL documentation recommends using JSONB, as it is more efficient for querying.
+[quote, PostgreSQL Documentation,https://www.postgresql.org/docs/16/datatype-json.html]
+In general, most applications should prefer to store JSON data as jsonb, unless there are quite specialized needs, such as legacy assumptions about ordering of object keys.
+
+Since querying and retrieving is far more common than storing, JSONB is the method of choice.
