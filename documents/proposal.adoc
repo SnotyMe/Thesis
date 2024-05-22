@@ -18,34 +18,47 @@ This surge led to increased mental overhead for students that now have to closel
 3. unannounced, time-critical tasks being overlooked entirely
 
 == Things to Research
+=== Development
 1. extendable base framework
    a. inputs -> system -> outputs
    b. exponential amount of combinations +
       => generic (templating) system required
-2. how to help the user self-host the entire application
+2. Integration with WebUntis
+   a. oAuth2 Flow or similar?
+   b. registration as an integration partner? +
+      => how would this work for self-hosted instances
+3. Integration with Moodle
+   a. oAuth2 Flow or comparable?
+   b. Mobile app tokens?
+4. authentication mechanisms +
+   => how will the user sign in to the application
+5. usefulness of a mobile app
+6. how to help the user self-host the entire application
    a. Docker Image
    b. Docker-Compose example
    c. Raw Kubernetes Manifests
    d. Helm Chart
-3. Integration with WebUntis
-   a. oAuth2 Flow or similar?
-   b. registration as an integration partner? +
-      => how would this work for self-hosted instances
-4. Integration with Moodle
-   a. oAuth2 Flow or comparable?
-   b. Mobile app tokens?
-5. authentication mechanisms +
-   => how will the user sign in to the application
-6. usefulness of a mobile app
+
+=== Scientific Research
+1. how many students are affected by this problem
+   * what is the impact on their daily life
+2. which integrations have the most demand
+3. willingness of students to pay for such a service
+4. the impact of the integrations on the day-to-day life of the students
+   * e.g. measuring the number of submissions after notifications
+   * does it help with procrastination and time management?
+   * does task awareness increase?
 
 == Goal
-A self-hostable application with a SaaS offering that allows students to connect their LMSs with their tools and services
+A self-hostable application with a SaaS offering that allows students to connect their LMSs with their tools and services.
 
 == Planned Result
 * intuitive user interface
-* dead easy LMS connection
+  ** measured by conducting surveys and monitoring metrics
+* straightforward LMS connection
+  ** no maintenance required after the initial setup
 * powerful, yet uncomplicated target configuration
-    ** basics are incredibly simple to set up
+    ** basics are simple to set up
     ** advanced customizability possible, if wanted
 
 == Milestones
