@@ -2,7 +2,88 @@
 
 This contains various notes, to be either copied or used as a reference for the thesis.
 
-== Comparing versions
+== Connecting Services
+Integrations and how they interconnect is the core of Snoty. Hence, a versatile, user-friendly and dynamic system should be created that scales with the number of integrations.
+
+An integration (a.k.a. service) can either be a "Producer" or a "Consumer". Producers generate data - these are the LMSs monitored. On the other hand, a Consumer receives changes and acts accordingly.
+
+As an example:
+
+**Producers**
+
+- WebUntis
+- Moodle
+
+**Consumers**
+
+- Todoist
+- Notion
+- Discord Webhook
+
+=== The problem with hardcoding
+At the start, hardcoding the connections between integrations is fairly easy.
+
+With 2 producers and 3 consumers, the total number of connections is 2 * 3 = 6. +
+By adding one producer and one consumer, this number jumps to 3 * 4 = 12 - doubling the number of connections! +
+Adding 2 further consumers bumps the number to 3 * 6 = 18.
+
+The takeaway is that hardcoding doesn't scale. Instead, there have to be contracts to define outputs and inputs of integrations.
+
+=== Dynamic connections
+To connect two services together, users can connect edges together. However, integrations produce and consume various entities specific to
+that integration only. Producers do not know the consumer and shouldn't have to react based on that.
+In order to define the data sent to consumers, users can use various nodes to transform the data.
+Most notably, the built-in `MappingNode` can be used to define properties and how they are transformed.
+It serves as a middleman between producers and consumers by mapping data.
+
+For example, the producer `Moodle` may produce the entity `Assignment`. This entity has certain properties. On the other hand, the `Todoist` consumer requires a task title, description and due date.
+
+The user-defined `MappingNode` gets the assignment as an input, templates the properties required by Todoist and sends the result to that integration.
+
+[plantuml, Text, png]
+----
+!include https://raw.githubusercontent.com/SnotyMe/snoty-backend/4023502fb7182a5b0c80c963043d30cf09072fd5/docs/flows.puml
+----
+
+This system allows users to define their own mappings and transformations, making the system versatile and user-friendly.
+Also, it allows Snoty to be used not just for the pre-built LMS integrations, but potentially any kind of
+service in the future.
+
+== Comparing persistence options
+=== Comparing databases
+1. SQL +
+   Advantage: fast querying, easy lookup of checksums, relations. Already used in Snoty.Me.
+   Disadvantage: less flexible than NoSQL. Not made for unstructured / commonly changing data.
+2. NoSQL +
+   A more flexible way to store data. Allows to store and query JSON natively.
+   Disadvantage: schemaless, leading to potential inconsistencies and runtime errors.
+3. Graph Database +
+   They model data as nodes and edges. This is especially useful for highly connected data. Snoty's nodes correspond to
+   this data model perfectly. Purpose-built graph databases allow fast querying, easy queries and have features to
+   make working with these nodes easier, like recursion, limits, relational lookups, etc.
+4. In-memory database (Valkey / Redis) +
+   A KV-store like Valkey (formerly Redis) is incredibly fast to query, which is important in this part of the system as lookups are quite common.
+   However, they are not suited to be the primary database, as they only have simple querying capabilities (lookup by Key).
+   Disadvantage: separate component, increasing complexity.
+
+A key factor in choosing the infrastructure and backing components of Snoty.Me is to keep it as simple as possible. For a SaaS-only application, it can absolutely make sense to pick a purpose-built and complex infrastructure for the sake of performance. For example, a dedicated Cache (like Valkey) can be used to speedup queries, a Message Queue to distribute events, ... However, Snoty.Me is a piece of software that should work in a variety of environments, including on-premise installations. Therefore, the infrastructure should be as simple as possible, allowing everyone to run it with minimal effort and resources.
+
+=== What Data do we store
+Snoty is a highly data-driven application. While relationships do exist (everything is scoped to an user, for example),
+there's tons of different entities that may change without notice. For example, a property may be renamed in Moodle.
+
+In order to see what Snoty needs to store, let's look at the entities stored:
+
+==== Node configuration
+
+Nodes can have tons of different properties. Apart from the common `name`, almost no nodes share the same properties.
+This would make a SQL database a nightmare to maintain - at least with traditional tools. Thankfully, in the Kotlin World,
+JetBrains Exposed is an established framework that provides a low-level SQL DSL. This allows users to define table schemas
+and queries with minimal overhead.
+However, even with these abstractions, maintaining schemas alongside DTOs is a hassle. This is especially concerning
+considering that this data makes up the largest part of Snoty.
+
+==== Entity States
 A crucial ingredient to the platform is comparing states.
 
 When exams, assignments etc. are updated, the platform should be able to compare the old and new versions and highlight the differences.
@@ -10,44 +91,102 @@ When exams, assignments etc. are updated, the platform should be able to compare
 To do this, "updatable" entities have two main parts:
 
 1. checksum +
-   prior to comparing the full versions, the checksums of the two versions are compared. If they are different, the full versions are compared. If they are the same, the versions are considered identical. This prevents unnecessary data loading and comparison.
+prior to comparing the full versions, the checksums of the two versions are compared. If they are different, the full versions are compared. If they are the same, the versions are considered identical. This prevents unnecessary data loading and comparison.
 2. diff +
-   the full versions are compared and the differences are highlighted.
+the full versions are compared and the differences are highlighted.
 
-=== Storing versions
-In order to compare versions between application restarts, entities
-and their checksum need to be persisted in a database.
+== Picking a database
+=== Relational DB
+A relational database is the most common type of database. It stores data in tables, with rows and columns. Each row represents a record, and each column represents a field. Postgres has established itself as the go-to relational database for most applications.
+It is fast, reliable, scalable, fully open source and independent and has a large community.
 
-==== Comparing persistence options
-1. Database +
-   The most common way to persist data. The checksums and versions can be stored in a database.
-2. File system +
-   The checksums and versions can be stored in files. This is more lightweight than a database, but also less flexible and reliable. In addition, this makes it way harder in cloud-native environments.
-3. In-memory +
-   The checksums and versions can be stored in memory. This is the most lightweight option, but also the least reliable. Unfortunately, this is not an option as the application should be scalable and failure resistant.
+However, the dynamic nature of Snoty's data makes it hard to maintain a schema.
 
-As Snoty.Me already uses a database, this is the method of choice.
+==== JSON or JSONB
+As an alternative to columns, entities can also be persisted as JSON. Ideally, this would allow users to just pass
+a Kotlin data class to the database and have it stored as JSON. This would make the system more flexible and easier to maintain.
 
-===== Database options
-1. SQL +
-   Advantage: fast querying, easy lookup of checksums. Already used in Snoty.Me.
-   Disadvantage: less flexible than NoSQL. Doesn't, or at least, shouldn't store JSON.
-2. NoSQL +
-   A more flexible way to store data. Allows to store and query JSON natively.
-   Disadvantage: separate database, increasing complexity.
-3. In-memory database (Valkey / Redis) +
-   A KV-store like Valkey (formerly Redis) is incredibly fast to query, which is important in this part of the system as lookups are quite common.
-   Disadvantage: separate component, increasing complexity.
-
-A key factor in choosing the infrastructure and backing components of Snoty.Me is to keep it as simple as possible. For a SaaS-only application, it can absolutely make sense to pick a purpose-built and complex infrastructure for the sake of performance. However, Snoty.Me is a piece of application that should work in a variety of environments, including on-premise installations. Therefore, the infrastructure should be as simple as possible, allowing everyone to run it with minimal effort and resources.
-
-Since NoSQL databases do not offer a significant advantage over SQL databases in this case, and in fact, add complexity, they are not considered. Valkey is a great tool for caching and fast lookups, but requires a separate component that isn't needed in another component of the system. In this case, it is more important to keep the system simple and easy to run. Hence, the SQL database is the method of choice.
-
-====== JSON or JSONB
 In PostgreSQL, there are two ways to store JSON data: JSON and JSONB. JSON is stored as text, while JSONB is stored as a binary format. JSONB is more efficient for querying, as it can be indexed. JSON is more efficient for storage, as it is stored as text.
 
 The PostgreSQL documentation recommends using JSONB, as it is more efficient for querying.
 [quote, PostgreSQL Documentation,https://www.postgresql.org/docs/16/datatype-json.html]
 In general, most applications should prefer to store JSON data as jsonb, unless there are quite specialized needs, such as legacy assumptions about ordering of object keys.
 
-Since querying and retrieving is far more common than storing, JSONB is the method of choice.
+Since querying and retrieving is far more common than storing, JSONB would be the method of choice.
+
+However, considering the data stored, the vast majority of tables would just have some keys and the associated JSON.
+This seems fundamentally wrong, as SQL tables aren't meant to just store JSON!
+
+=== Graph Database
+Graph Databases, while fitting perfectly to the data model of Snoty's Node aspect, are not a good fit for the rest of the data.
+
+==== Comparing Vendors
+Neo4j is the most popular graph database. It is open-source, has a large community, and is easy to use. However,
+high availability is only supported in the enterprise edition. Whilst a chat with an employee has opened the opportunity
+to get a free business license for the Snoty SaaS offering, this isn't where Snoty should be heading. Open Core is still
+a far stretch from being truly open source.
+
+Other options include:
+
+- TypeDB - has the same problem: the "Core" offering doesn't support automatic failover. link:https://typedb.com/deploy[source]
+- JanusGraph - supports multiple storage backends, like Apache Cassandra. What the available backends have in common is their
+concerning system requirements. Additionally, this separation means that two entire systems have to be deployed and maintained.
+- ScyllaDB - The target audience seems to be huge companies (like Discord) that need to scale to millions of users with terrabytes of
+geo-replicated data. The system requirements reflect this.
+
+Source: link:https://en.wikipedia.org/wiki/Graph_database#List_of_graph_databases[]
+
+=== MongoDB
+MongoDB is a NoSQL database that stores data in JSON format. This allows for a flexible schema, which is important for Snoty's dynamic data model. It is also fast, scalable, and easy to use. MongoDB is a popular choice for many applications, and has a large community and ecosystem.
+
+=== The Decision
+In conclusion, MongoDB seems to be the best fit for Snoty. +
+Using `graphLookup`, it supports recursive queries, which is crucial for the Node system.
+Aggregations can provide statistics, enabling observability using metrics. +
+In short: it appears to be the "common denominator" for the data stored in Snoty.
+
+This is a perfect example of a decision that is strongly influenced by the goal of Snoty: to be as easy to self-host as possible.
+Instead of using, for example, a purpose-built graph database, *one* database should be used for ALL data, even if it may not suit
+the model and access patterns perfectly.
+
+One huge downside to point out here is that, contrary to PostgreSQL, MongoDB is a commercial for-profit product. The
+open-source version is absolutely enough and most likely won't go anywhere, but it's still a concern and something to
+look out for in the future.
+
+== Event Queue
+// TODO: event queues are not needed, explain why
+In order to process the changes detected, target integrations have to be notified of changes. This is done through an event queue.
+
+When a change is detected, it gets added to the queue. Available servers process the items in this queue as soon as possible. The workers then actually run the task, like adding a task to your to-do list.
+
+=== Choosing software
+Great resources:
+
+- https://adriano.fyi/posts/2023-09-24-choose-postgres-queue-technology/
+- https://webapp.io/blog/postgres-is-the-answer/
+
+Event streaming, Message Queueing, etc. are solved problems. Plenty of platforms and approaches exist, ready to be used.
+However, a large argument in the decision process of Snoty is the ease of maintenance. Rather than choosing the most "scalable" solution, or even the "purpose fit" one, the simplest shall be used per default, unless the advantages of alternatives outweigh the disadvantages by a significant margin. Existing parts of the stack shall be re-used, even if the use case isn't idiomatic, for the sake of simplicity, also in consideration of self-hosters.
+
+==== Kafka
+Kafka is the industry standard for message queues. It is versitaile and battle-proven.
+
+However, with the enterprise features of Kafka comes a price: the resource consumption. At least 6 Gigabytes of RAM are recommended and a few physical cores.
+
+NOTE: citation needed
+
+To mitigate this issue, https://redpanda.com[Redpanda] can be used as a drop-in replacement for Kafka. Still, https://docs.redpanda.com/current/deploy/deployment-option/self-hosted/manual/production/requirements/#cpu-and-memory[2 physical and 4 GB RAM] is the minimum according to the documentation. Since a primary goal of Snoty is to make it as easy to self-host as possible, these resources are unreasonable to expect from the average student.
+
+==== Postgres
+Whilst certainly not made for this use case, Postgres is still a solid solution and can totally be used as a pub/sub server. According to webapp.io,
+[quote,https://webapp.io/blog/postgres-is-the-answer/]
+There are very few use cases where you'd need a dedicated pub/sub server like Kafka. Postgres can easily handle https://severalnines.com/blog/benchmarking-postgresql-performance[10,000 insertions per second], and it can be tuned to even higher numbers. It's rarely a mistake to start with Postgres and then switch out the most performance critical parts of your system when the time comes.
+
+=== Distributing jobs
+As a way to scale, despite using suboptimal software for simplicity and self-hosting reasons, the Backend should be able to run in a cluster.
+
+Fetching is already distributed thanks to jobrunr, which features internal job queueing based on postgres. Additionally, https://github.com/SnotyMe/snoty-backend/issues/5[Backend#5 aims to allow standalone fetchers].
+
+Similarly, consumers should be processed on a single server of an arbitrary number in a cluster too.
+
+In order to do this, updates shall be stored in the database for further processing. A single application instance will acquire the record (atomic update => no other instance has the ability to claim this record) and process **all** connections and consumers associated with this entity in sync. This minimizes load and reduces the risk of a single record impacting the application in a major manner.
