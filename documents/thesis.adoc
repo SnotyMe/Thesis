@@ -1,0 +1,104 @@
+= Thesis
+
+== // TO INTRODUCE
+Things to introduce _somewhere_:
+
+- Programming language
+- Frameworks and Libraries (Ktor, Koin, MongoDB driver)
+- "world first" achievements
+  * MongoDB tracing
+
+== The Problem
+What are we trying to solve? No mention of a solution yet, just student testimonials describing things that need improvement.
+
+== Connecting Services
+Snoty should integrate with as many services as possible. This section describes how these dynamic connections can be made.
+
+Additionally, it describes why hardcoding and pre-made isolated connections aren't feasible.
+
+== Configuration
+=== What needs to be configured
+Describe different types of configurations, like server settings (host, port), database connection, authentication, but
+also optional integration-specific settings like the API key for a service.
+
+=== How
+Environment variables, configuration files (yaml, json, ...), ... +
+Explain how hoplite helps in achieving user-friendly configuration.
+
+=== Feature Flags
+Describe how Feature Flags using OpenFeature are used to configure tons of aspects.
+Explain the importance given the dangers that come with the powerful Snoty features (rapid incident response without redeployments). Also, mention why and how debugging is improved using feature flags (logging, targeted based on the context, temporary, no redeployments)
+
+== Persisting Data
+=== What data do we store
+Everything is highly dynamic. Whilst integrations usually have a pre-defined schema, mappers
+allow users to do whatever they want with their data.
+Snoty is data-driven, meaning that a large volume of data can accumulate quickly.
+
+==== Node settings
+Data Classes containing user settings. Scoped to a specific node.
+
+==== Entity States
+Keeping track of entities - Diff node, ICal, Todoist, ... (keeping track of created tasks to update and close them) +
+Mention the NodePersistenceService and how it's an useful abstraction to provide persistence to nodes.
+
+==== Job data
+Executions (time, status, duration?), logs
+
+=== Comparing databases
+This section describes the different viable approaches based on the previous arguments and compares them.
+It also mentions the architecture constraints caused by the self-hosting option.
+
+==== SQL
+PostgreSQL using JetBrains Exposed
+
+==== Graph
+Neo4j, TypeDB, JanusGraph, ScyllaDB, ...
+
+==== NoSQL
+MongoDB, Cassandra, ...
+
+=== The decision
+Explain how MongoDB was chosen, given its schemaless nature, acceptable resource footprint and great adoption.
+
+== Scheduling
+=== When, how, what
+Scheduling tasks (= running a flow) every x minutes + manual triggers
+
+=== Logging
+Logs produced in the context of a flow are persisted to the database, to be read by the user in order to debug issues and monitor executions.
+Explain content propagation, how it is usually done in Logback (MDC) and how Kotlin's coroutines fit into the picture (ThreadLocals).
+
+
+== Extending Snoty
+=== Code loading on the JVM
+Briefly explain the JVM Classpath architecture and how code can be loaded dynamically at runtime.
+Introduce SPI, the disadvantages (speed) - building the bridge to the next sector
+
+=== Kotlin Compiler Plugin - KSP
+Why do we need it, what does it do, possible alternatives.
+Compare KSP and the native compiler plugin (significantly more complicated, more breaking changes).
+
+== Deployment
+=== Methods
+Briefly describe the advantages of containerization, in particular with respect to Snoty's requirements.
+Mention the helm chart and docker-compose files.
+
+=== SaaS offering
+Explain how the SaaS offering is built, where it is hosted, how it is scaled, how it is monitored.
+
+=== Self-hosting
+Test the required computing resources and evaluate the difficulty of self-hosting the stack.
+
+== Observability
+=== Why
+Problems are bound to occur => continuous monitoring required +
+Detecting anomalies and reacting to issues before users face them.
+
+=== What
+Flow executions (execution speed), node usage (e-mail sending), HTTP requests.
+
+=== How
+Compare standards like Prometheus, Micrometer, OpenTelemetry, OpenTracing, ...
+
+OpenTelemetry is chosen, vast adoption (https://www.infoq.com/news/2024/10/cloudflare-opentelemetry/)
